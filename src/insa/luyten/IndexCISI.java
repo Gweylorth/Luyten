@@ -104,19 +104,69 @@ public class IndexCISI {
 
         BufferedReader reader = new BufferedReader(new FileReader(file));
         Pattern indexPattern = Pattern.compile(separator + " (\\d+)");
-        String line;
-        while((line = reader.readLine()) != null){
+        String line = "";
+        boolean skipLine = false;
+        while (line != null) {
+            // Skip reading another line if the current one has not already been parsed
+            if (!skipLine)
+               line = reader.readLine();
+            else
+                skipLine = false;
+            if (line == null)
+                break;
+
+            // Handle indexing and document splitting
             if (line.startsWith(separator)){
                 Document d = new Document();
-                System.out.println(line);
-
                 Matcher m = indexPattern.matcher(line);
                 m.matches();
                 int index = Integer.parseInt(line.substring(m.start(1), m.end(1)));
-                System.out.println(index);
+                System.out.println("Index : " + index);
                 d.add(new IntField("index", index, Field.Store.YES));
+                docs.add(d);
+                continue;
+            }
 
-                docs.add(new Document());
+            // Check whether line starts with a tag
+            String tagFound = null;
+            for (String tag : tags) {
+                if (line.startsWith(tag)){
+                    tagFound = tag;
+                    break;
+                }
+            }
+
+            // Handle lines according to tag found
+            if (tagFound != null){
+                // Switch on tags to handle them
+                Document lastDoc = docs.get(docs.size() - 1);
+                switch (tagFound) {
+                    // Title found
+                    case ".T" :
+                        String title = reader.readLine();
+                        System.out.println("Title : " + title);
+                        lastDoc.add(new StringField("title", title, Field.Store.YES));
+                        break;
+                    // Authors found
+                    case ".A" :
+                        String authors = "";
+                        // Keep adding authors until finding another tag
+                        while(!(line = reader.readLine()).startsWith(".W"))
+                            authors = authors.concat(line + " ");
+                        authors.trim();
+                        skipLine = true;
+                        System.out.println("Authors : " + authors);
+                        lastDoc.add(new StringField("authors", authors, Field.Store.YES));
+                        break;
+                    // Reference found
+                    case ".B" :
+                        break;
+                    // Text found
+                    case ".W" :
+                        break;
+                    default :
+                        break;
+                }
             }
         }
 

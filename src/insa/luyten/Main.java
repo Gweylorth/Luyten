@@ -1,8 +1,5 @@
 package insa.luyten;
 
-import org.apache.lucene.demo.IndexFiles;
-import org.apache.lucene.demo.SearchFiles;
-
 /**
  * Created by Gweylorth on 08/04/2014.
  */
