@@ -121,6 +121,7 @@ public class IndexCISI {
                 Matcher m = indexPattern.matcher(line);
                 m.matches();
                 int index = Integer.parseInt(line.substring(m.start(1), m.end(1)));
+                System.out.println("");
                 System.out.println("Index : " + index);
                 d.add(new IntField("index", index, Field.Store.YES));
                 docs.add(d);
@@ -143,14 +144,19 @@ public class IndexCISI {
                 switch (tagFound) {
                     // Title found
                     case ".T" :
-                        String title = reader.readLine();
+                        String title = "";
+                        // Keep adding title lines until finding a content or author tag
+                        while(!(line = reader.readLine()).startsWith(".W") && !line.startsWith(".A"))
+                            title = title.concat(line + " ");
+                        title.trim();
+                        skipLine = true;
                         System.out.println("Title : " + title);
                         lastDoc.add(new StringField("title", title, Field.Store.YES));
                         break;
                     // Authors found
                     case ".A" :
                         String authors = "";
-                        // Keep adding authors until finding another tag
+                        // Keep adding authors until finding a content tag
                         while(!(line = reader.readLine()).startsWith(".W"))
                             authors = authors.concat(line + " ");
                         authors.trim();
@@ -160,17 +166,26 @@ public class IndexCISI {
                         break;
                     // Reference found
                     case ".B" :
+                        String ref = reader.readLine();
+                        ref = ref.substring(1, ref.length() - 1); // Remove parenthesis
+                        System.out.println("Reference : " + ref);
+                        lastDoc.add(new StringField("references", ref, Field.Store.YES));
                         break;
                     // Text found
                     case ".W" :
+                        String content = "";
+                        // Keep adding content until finding an index tag
+                        while((line = reader.readLine()) != null && !line.startsWith(".I"))
+                            authors = content.concat(line + " ");
+                        content.trim();
+                        skipLine = true;
+                        lastDoc.add(new TextField("content", content, Field.Store.YES));
                         break;
                     default :
                         break;
                 }
             }
         }
-
-
         return docs;
     }
 }
