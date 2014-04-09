@@ -28,41 +28,21 @@ import java.util.regex.Pattern;
  * We'll try to make a new Analyzer that suits our needs next.
  * Let's see how far we can get!
  */
-public class IndexCISI {
+public class IndexCISI implements Runnable {
 
-    private IndexCISI() {}
+    private String docPath;
+    private boolean skipNextLine = false;
+    private String currentLine = "";
 
-    public static void main(String[] args) {
+    public IndexCISI(String docPath) {
+        this.docPath = docPath;
+    }
 
-        String usage = "IndexCISI"
-                + " -doc DOC_PATH\n"
-                + "This indexes the document in DOC_PATH, creating a Lucene index"
-                + "that can be searched with SearchFiles";
+    public void run() {
 
         String indexPath = "index";
-        String docPath = null;
 
-        for (int i = 0; i<args.length;i++){
-            if ("-doc".equals(args[i])){
-                docPath = args[i+1];
-            }
-        }
-
-        if (docPath == null) {
-            System.err.println("Usage: " + usage);
-            System.exit(1);
-        }
-
-        if (!docPath.endsWith("CISI.QRY")) {
-            System.out.println("Invalid file entry, needs CISI.QRY");
-            System.exit(1);
-        }
-
-        final File doc = new File(docPath);
-        if (!doc.exists() || !doc.canRead()){
-            System.out.println("CISI file" + doc.getAbsolutePath() + "does not exist or is not readable.");
-            System.exit(1);
-        }
+        final File doc = this.getInputFile();
 
         Date start = new Date();
         try {
@@ -86,10 +66,22 @@ public class IndexCISI {
         }
     }
 
+    private File getInputFile(){
 
-    static void indexDoc(IndexWriter writer, File file) throws IOException {
-        if (!file.canRead())
-            return;
+        if (!this.docPath.endsWith("CISI.QRY")) {
+            System.out.println("Invalid file entry, needs CISI.QRY");
+            System.exit(1);
+        }
+
+        File doc = new File(docPath);
+        if (!doc.exists() || !doc.canRead()){
+            System.out.println("CISI file" + doc.getAbsolutePath() + "does not exist or is not readable.");
+            System.exit(1);
+        }
+        return doc;
+    }
+
+    private void indexDoc(IndexWriter writer, File file) throws IOException {
 
         try {
             ArrayList<Document> docs = fileSplitter(file, ".I", ".W", ".T", ".A", ".B");
@@ -99,28 +91,34 @@ public class IndexCISI {
         }
     }
 
-    static ArrayList<Document> fileSplitter(File file, String separator, String... tags) throws IOException {
+    /**
+     * Splits huge file in many Documents
+     * @param file File to split
+     * @param separator String tag to split documents from one another
+     * @param tags Used tags in documents description
+     * @return List of Documents
+     * @throws IOException
+     */
+    private ArrayList<Document> fileSplitter(File file, String separator, String... tags) throws IOException {
         ArrayList<Document> docs = new ArrayList<Document>();
 
         BufferedReader reader = new BufferedReader(new FileReader(file));
         Pattern indexPattern = Pattern.compile(separator + " (\\d+)");
-        String line = "";
-        boolean skipLine = false;
-        while (line != null) {
+        while (this.currentLine != null) {
             // Skip reading another line if the current one has not already been parsed
-            if (!skipLine)
-               line = reader.readLine();
+            if (!this.skipNextLine)
+                this.currentLine = reader.readLine();
             else
-                skipLine = false;
-            if (line == null)
+                this.skipNextLine = false;
+            if (this.currentLine == null)
                 break;
 
             // Handle indexing and document splitting
-            if (line.startsWith(separator)){
+            if (this.currentLine.startsWith(separator)){
                 Document d = new Document();
-                Matcher m = indexPattern.matcher(line);
+                Matcher m = indexPattern.matcher(this.currentLine);
                 m.matches();
-                int index = Integer.parseInt(line.substring(m.start(1), m.end(1)));
+                int index = Integer.parseInt(this.currentLine.substring(m.start(1), m.end(1)));
                 System.out.println("");
                 System.out.println("Index : " + index);
                 d.add(new IntField("index", index, Field.Store.YES));
@@ -129,63 +127,85 @@ public class IndexCISI {
             }
 
             // Check whether line starts with a tag
-            String tagFound = null;
-            for (String tag : tags) {
-                if (line.startsWith(tag)){
-                    tagFound = tag;
-                    break;
-                }
-            }
+            String tagFound = this.findTags(this.currentLine, tags);
 
             // Handle lines according to tag found
             if (tagFound != null){
-                // Switch on tags to handle them
                 Document lastDoc = docs.get(docs.size() - 1);
-                switch (tagFound) {
-                    // Title found
-                    case ".T" :
-                        String title = "";
-                        // Keep adding title lines until finding a content or author tag
-                        while(!(line = reader.readLine()).startsWith(".W") && !line.startsWith(".A"))
-                            title = title.concat(line + " ");
-                        title.trim();
-                        skipLine = true;
-                        System.out.println("Title : " + title);
-                        lastDoc.add(new StringField("title", title, Field.Store.YES));
-                        break;
-                    // Authors found
-                    case ".A" :
-                        String authors = "";
-                        // Keep adding authors until finding a content tag
-                        while(!(line = reader.readLine()).startsWith(".W"))
-                            authors = authors.concat(line + " ");
-                        authors.trim();
-                        skipLine = true;
-                        System.out.println("Authors : " + authors);
-                        lastDoc.add(new StringField("authors", authors, Field.Store.YES));
-                        break;
-                    // Reference found
-                    case ".B" :
-                        String ref = reader.readLine();
-                        ref = ref.substring(1, ref.length() - 1); // Remove parenthesis
-                        System.out.println("Reference : " + ref);
-                        lastDoc.add(new StringField("references", ref, Field.Store.YES));
-                        break;
-                    // Text found
-                    case ".W" :
-                        String content = "";
-                        // Keep adding content until finding an index tag
-                        while((line = reader.readLine()) != null && !line.startsWith(".I"))
-                            authors = content.concat(line + " ");
-                        content.trim();
-                        skipLine = true;
-                        lastDoc.add(new TextField("content", content, Field.Store.YES));
-                        break;
-                    default :
-                        break;
-                }
+                this.processLine(reader, lastDoc, tagFound);
             }
         }
         return docs;
+    }
+
+    /**
+     * Handle the current tag and add info to the current Document
+     * @param reader
+     * @param doc
+     * @param tag
+     * @throws IOException
+     */
+    private void processLine(BufferedReader reader, Document doc, String tag) throws IOException {
+        switch (tag) {
+            // Title found
+            case ".T" :
+                String title = this.multiLineRead(reader, ".W", ".A");
+                System.out.println("Title : " + title);
+                doc.add(new StringField("title", title, Field.Store.YES));
+                break;
+            // Authors found
+            case ".A" :
+                String authors = this.multiLineRead(reader, ".W");
+                System.out.println("Authors : " + authors);
+                doc.add(new StringField("authors", authors, Field.Store.YES));
+                break;
+            // Reference found
+            case ".B" :
+                String ref = reader.readLine();
+                ref = ref.substring(1, ref.length() - 1); // Remove parenthesis
+                System.out.println("Reference : " + ref);
+                doc.add(new StringField("references", ref, Field.Store.YES));
+                break;
+            // Text found
+            case ".W" :
+                String content = this.multiLineRead(reader, ".I");
+                doc.add(new TextField("content", content, Field.Store.YES));
+                break;
+            default :
+                break;
+        }
+    }
+
+    /**
+     * Keeps concatenating lines to the result string while no stopping tag is found
+     * @param reader The current BufferedReader
+     * @return String, result of concatenation
+     */
+    private String multiLineRead(BufferedReader reader, String... tags) throws IOException {
+        String result = "";
+        this.skipNextLine = true;
+
+        while ((this.currentLine = reader.readLine()) != null) {
+            if (this.findTags(this.currentLine, tags) != null)
+                break;
+            else
+                result = result.concat(this.currentLine + " ");
+        }
+        return result.trim();
+    }
+
+    /**
+     * Check if line starts with any of the given tags
+     * @param line String to check
+     * @param tags Tags to look for
+     * @return String, the first tag found, or null if none found
+     */
+    private String findTags(String line, String... tags) {
+        for (String tag : tags) {
+            if (line.startsWith(tag)){
+                return tag;
+            }
+        }
+        return null;
     }
 }

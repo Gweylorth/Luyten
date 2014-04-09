@@ -6,6 +6,7 @@ package insa.luyten;
 public class Main {
 
     public static void main(String[] args){
-        IndexCISI.main(new String[]{"-doc", "S:\\GitHub repos\\Luyten\\cisi\\CISI.QRY"});
+        IndexCISI index = new IndexCISI("S:\\GitHub repos\\Luyten\\cisi\\CISI.QRY");
+        index.run();
     }
 }
