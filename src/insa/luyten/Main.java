@@ -9,11 +9,6 @@ import org.apache.lucene.demo.SearchFiles;
 public class Main {
 
     public static void main(String[] args){
-        IndexFiles.main(new String[]{"-docs", "C:\\Users\\Gwaihir\\Downloads\\lucene-4.7.1-src\\lucene-4.7.1\\demo\\src"});
-        try {
-            SearchFiles.main(new String[]{});
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        IndexCISI.main(new String[]{"-doc", "S:\\GitHub repos\\Luyten\\cisi\\CISI.QRY"});
     }
 }
