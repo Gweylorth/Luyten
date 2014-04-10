@@ -46,7 +46,8 @@ public class SearchCISI implements Runnable {
     public void run() {
         try {
             this.search();
-        } catch (Exception e) {
+        }        
+        catch (Exception e) {
             e.printStackTrace();
         }
     }
@@ -97,12 +98,35 @@ public class SearchCISI implements Runnable {
                 Date end = new Date();
                 System.out.println("Time: "+(end.getTime()-start.getTime())+"ms");
             }
-
-            this.doPagingSearch(in, searcher, query, hitsPerPage, raw, queries == null && queryString == null);
-
-            if (queryString != null) {
-                break;
+            
+            //catch NewQueryException
+            queryString = null; //by default
+            int nq = 0;
+            try{
+            	this.doPagingSearch(in, searcher, query, hitsPerPage, raw, queries == null && queryString == null);
             }
+            catch (NewQueryException e){
+            	String newQueryString = e.getMessage();
+            	System.out.println( "Is \"" + newQueryString + "\" a new query ?");
+            	
+            	do{
+            		System.out.println(" Enter (y)es or (n)o.");
+            		String l =in.readLine(); 
+            		if(l.length() == 1 && l.charAt(0) == 'y')
+            			nq = 1;  
+            		else if (l.length() == 1 && l.charAt(0) == 'n')
+            			nq = -1;
+            	}while(nq == 0);
+            	
+            	if(nq ==1){
+            		queryString = newQueryString;
+            	}
+            }
+            if(queryString != null && nq == 1) // it's okay
+            	;
+            else if(queryString != null)
+            		break;
+
         }
         reader.close();
     }
@@ -118,7 +142,7 @@ public class SearchCISI implements Runnable {
      *
      */
     private void doPagingSearch(BufferedReader in, IndexSearcher searcher, Query query,
-                                      int hitsPerPage, boolean raw, boolean interactive) throws IOException {
+                                      int hitsPerPage, boolean raw, boolean interactive) throws IOException, NewQueryException{
 
         // Collect enough docs to show 5 pages
         TopDocs results = searcher.search(query, 5 * hitsPerPage);
@@ -181,21 +205,31 @@ public class SearchCISI implements Runnable {
                     System.out.println("(q)uit or enter number to jump to a page.");
 
                     String line = in.readLine();
+                    //quit if no enter or q
                     if (line.length() == 0 || line.charAt(0)=='q') {
                         quit = true;
                         break;
-                    }
-                    if (line.charAt(0) == 'p') {
+                    }//just p
+                    if (line.length() == 1 && line.charAt(0) == 'p') {
                         start = Math.max(0, start - hitsPerPage);
                         break;
-                    } else if (line.charAt(0) == 'n') {
+                    }
+                    //just n
+                    else if (line.length() == 1 && line.charAt(0) == 'n') {
                         if (start + hitsPerPage < numTotalHits) {
                             start+=hitsPerPage;
                         }
                         break;
                     } else {
-                        int page = Integer.parseInt(line);
-                        if ((page - 1) * hitsPerPage < numTotalHits) {
+                    	//test if it's a word or a number 
+                    	int page=0;
+                    	try{
+                    		page= Integer.parseInt(line);
+                    	} //FD: if not a number, maybe a new query ?
+                    	catch(NumberFormatException e){
+                    		throw new NewQueryException(line);
+                    	}
+                    	if ((page - 1) * hitsPerPage < numTotalHits) {
                             start = (page - 1) * hitsPerPage;
                             break;
                         } else {
