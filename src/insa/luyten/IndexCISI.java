@@ -52,7 +52,7 @@ public class IndexCISI implements Runnable {
             Analyzer analyzer = new EnglishAnalyzer(Version.LUCENE_47);
             IndexWriterConfig config = new IndexWriterConfig(Version.LUCENE_47, analyzer);
 
-            config.setOpenMode(IndexWriterConfig.OpenMode.CREATE_OR_APPEND);
+            config.setOpenMode(IndexWriterConfig.OpenMode.CREATE);
 
             IndexWriter writer = new IndexWriter(dir, config);
             indexDoc(writer, doc);
@@ -82,9 +82,15 @@ public class IndexCISI implements Runnable {
     }
 
     private void indexDoc(IndexWriter writer, File file) throws IOException {
-
         try {
             ArrayList<Document> docs = fileSplitter(file, ".I", ".W", ".T", ".A", ".B");
+            int i = 0;
+            System.out.println("");
+            for (Document doc : docs) {
+                writer.addDocument(doc);
+                i++;
+            }
+            System.out.println("Added " + i + " documents.");
         } catch (IOException e) {
             writer.close();
             e.printStackTrace();
