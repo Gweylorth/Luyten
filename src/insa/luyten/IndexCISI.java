@@ -60,6 +60,7 @@ public class IndexCISI implements Runnable {
 
             Date end = new Date();
             System.out.println(end.getTime() - start.getTime() + " total ms");
+            System.out.println("");
 
         } catch (IOException ioe) {
             ioe.printStackTrace();
@@ -112,12 +113,15 @@ public class IndexCISI implements Runnable {
         Pattern indexPattern = Pattern.compile(separator + " (\\d+)");
         while (this.currentLine != null) {
             // Skip reading another line if the current one has not already been parsed
-            if (!this.skipNextLine)
+            if (!this.skipNextLine) {
                 this.currentLine = reader.readLine();
-            else
+            } else {
                 this.skipNextLine = false;
-            if (this.currentLine == null)
+            }
+
+            if (this.currentLine == null) {
                 break;
+            }
 
             // Handle indexing and document splitting
             if (this.currentLine.startsWith(separator)){
