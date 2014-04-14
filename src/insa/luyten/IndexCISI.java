@@ -31,6 +31,7 @@ import java.util.regex.Pattern;
 public class IndexCISI implements Runnable {
 
     private String docPath;
+
     private boolean skipNextLine = false;
     private String currentLine = "";
 
@@ -161,24 +162,24 @@ public class IndexCISI implements Runnable {
             case ".T" :
                 String title = this.multiLineRead(reader, ".W", ".A");
                 System.out.println("Title : " + title);
-                doc.add(new StringField("title", title, Field.Store.YES));
+                doc.add(new TextField("title", title, Field.Store.YES));
                 break;
             // Authors found
             case ".A" :
                 String authors = this.multiLineRead(reader, ".W");
                 System.out.println("Authors : " + authors);
-                doc.add(new StringField("authors", authors, Field.Store.YES));
+                doc.add(new TextField("authors", authors, Field.Store.YES));
                 break;
             // Reference found
             case ".B" :
                 String ref = reader.readLine();
                 ref = ref.substring(1, ref.length() - 1); // Remove parenthesis
                 System.out.println("Reference : " + ref);
-                doc.add(new StringField("references", ref, Field.Store.YES));
+                doc.add(new TextField("references", ref, Field.Store.YES));
                 break;
             // Text found
             case ".W" :
-                String content = this.multiLineRead(reader, ".I");
+                String content = this.multiLineRead(reader, ".I", ".B");
                 doc.add(new TextField("content", content, Field.Store.YES));
                 break;
             default :

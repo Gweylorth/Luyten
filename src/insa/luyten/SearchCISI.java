@@ -38,7 +38,9 @@ import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.Version;
 
-/** Simple command-line based search demo. */
+/**
+ * This class is based on the Lucene Demo SearchFiles class.
+ */
 public class SearchCISI implements Runnable {
 
     public SearchCISI() {}
@@ -52,10 +54,9 @@ public class SearchCISI implements Runnable {
         }
     }
 
-    /** Simple command-line based search demo. */
     private void search() throws Exception {
         String index = "index";
-        String field = "content";
+        String field = "";
         String queries = null;
         int repeat = 0;
         boolean raw = false;
@@ -65,9 +66,42 @@ public class SearchCISI implements Runnable {
         IndexReader reader = DirectoryReader.open(FSDirectory.open(new File(index)));
         IndexSearcher searcher = new IndexSearcher(reader);
         // :Post-Release-Update-Version.LUCENE_XY:
-        Analyzer analyzer = new EnglishAnalyzer(Version.LUCENE_47);
+        StandardAnalyzer standardAnalyzer = new StandardAnalyzer(Version.LUCENE_47);
+        EnglishAnalyzer englishAnalyzer = new EnglishAnalyzer(Version.LUCENE_47);
+        Analyzer analyzer = englishAnalyzer;
 
-        BufferedReader in= new BufferedReader(new InputStreamReader(System.in, "UTF-8"));;
+        BufferedReader in= new BufferedReader(new InputStreamReader(System.in, "UTF-8"));
+
+        // Ask for which type of fields to look into
+        System.out.println("What kind of information do you want to look for?");
+        System.out.println("A : Authors; B : References; T : Title; W : Contents");
+        do {
+            System.out.println(" Enter choice : A, B, T or W : ");
+            String l = in.readLine();
+            if(l.length() == 1) {
+                char choice = l.charAt(0);
+                switch (choice) {
+                    case 'A' :
+                        field = "authors";
+                        analyzer = standardAnalyzer;
+                        break;
+                    case 'B' :
+                        field = "references";
+                        analyzer = englishAnalyzer;
+                        break;
+                    case 'T' :
+                        field = "title";
+                        analyzer = englishAnalyzer;
+                        break;
+                    case 'W' :
+                        field = "content";
+                        analyzer = englishAnalyzer;
+                        break;
+                }
+            } else {
+                continue;
+            }
+        } while(field.equals(""));
 
         // :Post-Release-Update-Version.LUCENE_XY:
         QueryParser parser = new QueryParser(Version.LUCENE_47, field, analyzer);
@@ -103,7 +137,7 @@ public class SearchCISI implements Runnable {
             queryString = null; //by default
             int nq = 0;
             try{
-            	this.doPagingSearch(in, searcher, query, hitsPerPage, raw, queries == null && queryString == null);
+            	this.doPagingSearch(in, searcher, query, field, hitsPerPage, raw, queries == null && queryString == null);
             }
             catch (NewQueryException e){
             	String newQueryString = e.getMessage();
@@ -141,7 +175,7 @@ public class SearchCISI implements Runnable {
      * is executed another time and all hits are collected.
      *
      */
-    private void doPagingSearch(BufferedReader in, IndexSearcher searcher, Query query,
+    private void doPagingSearch(BufferedReader in, IndexSearcher searcher, Query query, String field,
                                       int hitsPerPage, boolean raw, boolean interactive) throws IOException, NewQueryException{
 
         // Collect enough docs to show 5 pages
@@ -179,8 +213,14 @@ public class SearchCISI implements Runnable {
                 if (index != null) {
                     System.out.println((i+1) + ". " + index);
                     String title = doc.get("title");
-                    if (title != null) {
+                    if (title != null && (field.equals("content")) || field.equals("title")) {
                         System.out.println("   Title: " + doc.get("title"));
+                    }
+                    if (field.equals("authors")) {
+                        System.out.println("   Authors: " + doc.get(field));
+                    }
+                    if (field.equals("references")) {
+                        System.out.println("   References: " + doc.get(field));
                     }
                 } else {
                     System.out.println((i+1) + ". " + "No path for this document");
