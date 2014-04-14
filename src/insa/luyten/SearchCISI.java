@@ -40,6 +40,7 @@ import org.apache.lucene.util.Version;
 
 /** Simple command-line based search demo. */
 public class SearchCISI implements Runnable {
+    private String[] fields = {"content", "title", "authors", "references"};
 
     public SearchCISI() {}
 
@@ -55,7 +56,7 @@ public class SearchCISI implements Runnable {
     /** Simple command-line based search demo. */
     private void search() throws Exception {
         String index = "index";
-        String field = "content";
+        String field = fields[0];
         String queries = null;
         int repeat = 0;
         boolean raw = false;
@@ -70,8 +71,17 @@ public class SearchCISI implements Runnable {
         BufferedReader in= new BufferedReader(new InputStreamReader(System.in, "UTF-8"));;
 
         // :Post-Release-Update-Version.LUCENE_XY:
-        QueryParser parser = new QueryParser(Version.LUCENE_47, field, analyzer);
         while (true) {
+            System.out.println("Choose query field :");
+
+            for (int i = 0; i < fields.length; i++) {
+                System.out.println(i+1 + ". " + fields[i]);
+            }
+
+            field = fields[Integer.parseInt(in.readLine()) - 1];
+
+            QueryParser parser = new QueryParser(Version.LUCENE_47, field, analyzer);
+
             if (queries == null && queryString == null) {                        // prompt the user
                 System.out.println("Enter query: ");
             }
@@ -98,7 +108,7 @@ public class SearchCISI implements Runnable {
                 Date end = new Date();
                 System.out.println("Time: "+(end.getTime()-start.getTime())+"ms");
             }
-            
+
             //catch NewQueryException
             queryString = null; //by default
             int nq = 0;
@@ -108,16 +118,16 @@ public class SearchCISI implements Runnable {
             catch (NewQueryException e){
             	String newQueryString = e.getMessage();
             	System.out.println( "Is \"" + newQueryString + "\" a new query ?");
-            	
+
             	do{
             		System.out.println(" Enter (y)es or (n)o.");
-            		String l =in.readLine(); 
+            		String l =in.readLine();
             		if(l.length() == 1 && l.charAt(0) == 'y')
-            			nq = 1;  
+            			nq = 1;
             		else if (l.length() == 1 && l.charAt(0) == 'n')
             			nq = -1;
             	}while(nq == 0);
-            	
+
             	if(nq ==1){
             		queryString = newQueryString;
             	}
