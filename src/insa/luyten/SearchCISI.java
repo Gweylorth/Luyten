@@ -38,9 +38,10 @@ import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.Version;
 
-/** Simple command-line based search demo. */
+/**
+ * This class is based on the Lucene Demo SearchFiles class.
+ */
 public class SearchCISI implements Runnable {
-    private String[] fields = {"content", "title", "authors", "references"};
 
     public SearchCISI() {}
 
@@ -53,8 +54,13 @@ public class SearchCISI implements Runnable {
         }
     }
 
-    /** Simple command-line based search demo. */
     private void search() throws Exception {
+        StandardAnalyzer standardAnalyzer = new StandardAnalyzer(Version.LUCENE_47);
+        EnglishAnalyzer englishAnalyzer = new EnglishAnalyzer(Version.LUCENE_47);
+
+        String[] fields = {"content", "title", "authors", "references"};
+        Analyzer[] analysers = {englishAnalyzer, englishAnalyzer, standardAnalyzer, englishAnalyzer};
+
         String index = "index";
         String field = fields[0];
         String queries = null;
@@ -66,19 +72,22 @@ public class SearchCISI implements Runnable {
         IndexReader reader = DirectoryReader.open(FSDirectory.open(new File(index)));
         IndexSearcher searcher = new IndexSearcher(reader);
         // :Post-Release-Update-Version.LUCENE_XY:
-        Analyzer analyzer = new EnglishAnalyzer(Version.LUCENE_47);
 
-        BufferedReader in= new BufferedReader(new InputStreamReader(System.in, "UTF-8"));;
+        Analyzer analyzer = analysers[0];
+
+        BufferedReader in = new BufferedReader(new InputStreamReader(System.in, "UTF-8"));
 
         // :Post-Release-Update-Version.LUCENE_XY:
         while (true) {
-            System.out.println("Choose query field :");
+            System.out.println("\nChoose query field :");
 
             for (int i = 0; i < fields.length; i++) {
                 System.out.println(i+1 + ". " + fields[i]);
             }
 
-            field = fields[Integer.parseInt(in.readLine()) - 1];
+            int n = Integer.parseInt(in.readLine()) - 1;
+            field = fields[n];
+            analyzer = analysers[n];
 
             QueryParser parser = new QueryParser(Version.LUCENE_47, field, analyzer);
 
@@ -113,7 +122,7 @@ public class SearchCISI implements Runnable {
             queryString = null; //by default
             int nq = 0;
             try{
-            	this.doPagingSearch(in, searcher, query, hitsPerPage, raw, queries == null && queryString == null);
+            	this.doPagingSearch(in, searcher, query, field, hitsPerPage, raw, queries == null && queryString == null);
             }
             catch (NewQueryException e){
             	String newQueryString = e.getMessage();
@@ -151,7 +160,7 @@ public class SearchCISI implements Runnable {
      * is executed another time and all hits are collected.
      *
      */
-    private void doPagingSearch(BufferedReader in, IndexSearcher searcher, Query query,
+    private void doPagingSearch(BufferedReader in, IndexSearcher searcher, Query query, String field,
                                       int hitsPerPage, boolean raw, boolean interactive) throws IOException, NewQueryException{
 
         // Collect enough docs to show 5 pages
@@ -189,8 +198,14 @@ public class SearchCISI implements Runnable {
                 if (index != null) {
                     System.out.println((i+1) + ". " + index);
                     String title = doc.get("title");
-                    if (title != null) {
+                    if (title != null && (field.equals("content")) || field.equals("title")) {
                         System.out.println("   Title: " + doc.get("title"));
+                    }
+                    if (field.equals("authors")) {
+                        System.out.println("   Authors: " + doc.get(field));
+                    }
+                    if (field.equals("references")) {
+                        System.out.println("   References: " + doc.get(field));
                     }
                 } else {
                     System.out.println((i+1) + ". " + "No path for this document");

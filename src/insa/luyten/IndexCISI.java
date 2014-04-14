@@ -31,6 +31,7 @@ import java.util.regex.Pattern;
 public class IndexCISI implements Runnable {
 
     private String docPath;
+
     private boolean skipNextLine = false;
     private String currentLine = "";
 
@@ -178,7 +179,7 @@ public class IndexCISI implements Runnable {
                 break;
             // Text found
             case ".W" :
-                String content = this.multiLineRead(reader, ".I");
+                String content = this.multiLineRead(reader, ".I", ".B");
                 doc.add(new TextField("content", content, Field.Store.YES));
                 break;
             default :
