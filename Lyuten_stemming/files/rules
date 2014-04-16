@@ -1,0 +1,14 @@
+%preterit removing
+ed := null
+
+%-ing form removing
+ing := null
+
+%adverbs in -ly
+ly := null
+
+%adjectives in -able
+able := null
+
+%adverbs in -ably
+ably := null
